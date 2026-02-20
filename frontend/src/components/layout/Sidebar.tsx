@@ -1,9 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 
 export interface MenuItem {
@@ -18,35 +17,55 @@ interface SidebarProps {
 }
 
 export function Sidebar({ menuItems = [] }: SidebarProps) {
-    const [collapsed, setCollapsed] = useState(false);
+    const [expanded, setExpanded] = useState(false);
     const pathname = usePathname();
+    const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+    const handleMouseEnter = () => {
+        if (timeoutRef.current) {
+            clearTimeout(timeoutRef.current);
+            timeoutRef.current = null;
+        }
+        setExpanded(true);
+    };
+
+    const handleMouseLeave = () => {
+        timeoutRef.current = setTimeout(() => {
+            setExpanded(false);
+        }, 200);
+    };
 
     return (
         <aside
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
             className={cn(
-                "bg-white border-r border-gray-200 transition-all duration-300 flex flex-col relative",
-                collapsed ? "w-16" : "w-60"
+                "bg-white border-r border-gray-200 flex flex-col relative z-30",
+                "transition-all duration-300 ease-in-out",
+                expanded ? "w-60" : "w-[72px]"
             )}
         >
-            <div className="h-16 flex items-center justify-between px-4 border-b border-gray-200">
-                {!collapsed && (
-                    <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
-                            <span className="text-white font-bold text-sm">R</span>
-                        </div>
-                        <h2 className="text-lg font-bold text-gray-900">Rfix</h2>
-                    </div>
-                )}
-                {collapsed && (
-                    <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center mx-auto">
+            <div className="h-16 flex items-center px-4 border-b border-gray-200 overflow-hidden">
+                <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
                         <span className="text-white font-bold text-sm">R</span>
                     </div>
-                )}
+                    <h2
+                        className={cn(
+                            "text-lg font-bold text-gray-900 whitespace-nowrap transition-all duration-300",
+                            expanded
+                                ? "opacity-100 translate-x-0"
+                                : "opacity-0 -translate-x-2 pointer-events-none"
+                        )}
+                    >
+                        Rfix
+                    </h2>
+                </div>
             </div>
 
-            <nav className="flex-1 py-4 overflow-y-auto">
+            <nav className="flex-1 py-4 overflow-y-auto overflow-x-hidden">
                 {menuItems.length > 0 ? (
-                    <ul className="space-y-1 px-2">
+                    <ul className="space-y-1 px-3">
                         {menuItems.map((item) => {
                             const Icon = item.icon;
                             const isActive =
@@ -58,28 +77,32 @@ export function Sidebar({ menuItems = [] }: SidebarProps) {
                                     <Link
                                         href={item.href}
                                         className={cn(
-                                            "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group relative",
+                                            "flex items-center gap-3 rounded-lg transition-all duration-200 group relative",
+                                            "h-10 px-3",
                                             isActive
-                                                ? "bg-gradient-to-r from-primary/10 to-primary/5 text-primary border-l-4 border-primary"
-                                                : "text-gray-700 hover:bg-gray-100 hover:text-gray-900",
-                                            collapsed && "justify-center"
+                                                ? "bg-gradient-to-r from-primary/10 to-primary/5 text-primary"
+                                                : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                                         )}
-                                        title={collapsed ? item.label : undefined}
                                     >
-                                        <Icon
-                                            className={cn(
-                                                "flex-shrink-0 w-5 h-5"
-                                            )}
-                                        />
-                                        {!collapsed && (
-                                            <span className="text-sm font-medium truncate">
-                                                {item.label}
-                                            </span>
+                                        {isActive && (
+                                            <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-primary rounded-r-full" />
                                         )}
+                                        <Icon className="flex-shrink-0 w-5 h-5" />
+                                        <span
+                                            className={cn(
+                                                "text-sm font-medium whitespace-nowrap transition-all duration-300",
+                                                expanded
+                                                    ? "opacity-100 translate-x-0"
+                                                    : "opacity-0 -translate-x-2 pointer-events-none w-0"
+                                            )}
+                                        >
+                                            {item.label}
+                                        </span>
 
-                                        {collapsed && (
-                                            <span className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50 transition-opacity">
+                                        {!expanded && (
+                                            <span className="absolute left-full ml-3 px-2.5 py-1.5 bg-gray-900 text-white text-xs rounded-md opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50 transition-opacity duration-200 shadow-lg">
                                                 {item.label}
+                                                <span className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-gray-900" />
                                             </span>
                                         )}
                                     </Link>
@@ -88,36 +111,27 @@ export function Sidebar({ menuItems = [] }: SidebarProps) {
                         })}
                     </ul>
                 ) : (
-                    <div className={cn(
-                        "px-4 py-8 text-center",
-                        collapsed && "px-2"
-                    )}>
-                        {!collapsed && (
-                            <p className="text-sm text-gray-400">
-                                No menu items
-                            </p>
-                        )}
+                    <div className="px-3 py-8 text-center overflow-hidden">
+                        <p
+                            className={cn(
+                                "text-sm text-gray-400 whitespace-nowrap transition-all duration-300",
+                                expanded
+                                    ? "opacity-100"
+                                    : "opacity-0"
+                            )}
+                        >
+                            No menu items
+                        </p>
                     </div>
                 )}
             </nav>
 
-            <button
-                onClick={() => setCollapsed(!collapsed)}
+            <div
                 className={cn(
-                    "h-12 flex items-center justify-center border-t border-gray-200 hover:bg-gray-50 transition-colors",
-                    collapsed ? "px-2" : "px-4"
+                    "absolute top-1/2 -translate-y-1/2 -right-[5px] w-[5px] h-8 rounded-full transition-all duration-300",
+                    expanded ? "opacity-0" : "opacity-100 bg-gray-300 hover:bg-primary"
                 )}
-                aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-            >
-                {collapsed ? (
-                    <ChevronRight className="w-5 h-5 text-gray-600" />
-                ) : (
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                        <ChevronLeft className="w-4 h-4" />
-                        <span>Collapse</span>
-                    </div>
-                )}
-            </button>
+            />
         </aside>
     );
 }
